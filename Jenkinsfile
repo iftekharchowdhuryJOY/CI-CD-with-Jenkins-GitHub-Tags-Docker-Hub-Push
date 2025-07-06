@@ -2,30 +2,28 @@ pipeline {
     agent any
 
     environment {
-        // Use YOUR Docker Hub username (must match credentials)
+        // ✅ Confirm this EXACTLY matches your Docker Hub username
         IMAGE_NAME = 'monnomestjoy/flask-ci-app'  
     }
 
     stages {
         stage('Clone & Prepare') {
             steps {
-                cleanWs()  // Clean workspace first
+                cleanWs()  // Clean workspace to avoid conflicts
                 script {
-                    // Clone repo
+                    // Clone repo (replace with your actual Git URL)
                     sh '''
                         git clone https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
                     '''
                     
-                    // Get latest tag and checkout
+                    // Get the latest Git tag
                     dir('CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push') {
                         env.IMAGE_TAG = sh(
                             script: "git fetch --tags && git describe --tags `git rev-list --tags --max-count=1`", 
                             returnStdout: true
                         ).trim()
                         sh "git checkout ${env.IMAGE_TAG}"
-                        
-                        // Copy files to workspace root
-                        sh "cp -r . ../"  
+                        sh "cp -r . ../"  // Copy files to workspace root
                     }
                 }
             }
@@ -33,7 +31,16 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                sh """
+                    # Pull base image first to avoid rate limits
+                    docker pull python:3.10-slim || true
+                    
+                    # Build with --no-cache to avoid layer conflicts
+                    docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    
+                    # Verify the image was created
+                    docker images | grep '${IMAGE_NAME}'
+                """
             }
         }
 
@@ -41,7 +48,7 @@ pipeline {
             steps {
                 withCredentials([[
                     $class: 'UsernamePasswordMultiBinding',
-                    credentialsId: 'docker-hub',  // Verify this credential exists in Jenkins
+                    credentialsId: 'docker-hub',  // ✅ Must match Jenkins credential ID
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 ]]) {
@@ -49,10 +56,14 @@ pipeline {
                         # Login to Docker Hub
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         
-                        # Push the image
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        # Push with retry (in case of network issues)
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG} || {
+                            echo "First push failed. Retrying in 10 seconds...";
+                            sleep 10;
+                            docker push ${IMAGE_NAME}:${IMAGE_TAG};
+                        }
                         
-                        # Logout (security best practice)
+                        # Logout for security
                         docker logout
                     '''
                 }
@@ -63,9 +74,13 @@ pipeline {
     post {
         success {
             echo "✅ Success! Pushed ${IMAGE_NAME}:${IMAGE_TAG} to Docker Hub"
+            sh """
+                echo "Verify at: https://hub.docker.com/r/monnomestjoy/flask-ci-app/tags"
+            """
         }
         failure {
             echo "❌ Pipeline failed - check logs above"
+            sh "docker logout"  // Force logout on failure
         }
     }
 }
