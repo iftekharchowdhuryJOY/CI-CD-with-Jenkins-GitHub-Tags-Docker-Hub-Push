@@ -2,28 +2,22 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'flask-ci-app'
+        IMAGE_NAME = 'iftekharchowdhury/flask-ci-app'
     }
 
     stages {
         stage('Clone') {
             steps {
-                git 'https://github.com/iftekharchowdhuryJOY/CI-CD-Project-Using-JENKINS.git'
+                git 'https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git'
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Get Git Tag') {
             steps {
-                sh 'pip install -r requirements.txt'
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                sh '''
-                    export PYTHONPATH=$PWD
-                    pytest
-                '''
+                script {
+                    TAG = sh(script: "git describe --tags", returnStdout: true).trim()
+                    env.IMAGE_TAG = "${TAG}"
+                }
             }
         }
 
@@ -32,47 +26,26 @@ pipeline {
                 sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
-        stage('Get Git Tag') {
+
+        stage('Push to Docker Hub') {
             steps {
-                script{
-                    TAG = sh(script: "git describe --tags", returnStdout: true).trim()
-                    env.IMAGE_TAG = "${TAG}"
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker logout
+                    '''
                 }
             }
         }
-        stage('Deploy to Dev') {
-            steps {
-                sh '''
-                    docker stop flask-dev || true && docker rm flask-dev || true
-                    docker run -d --name flask-dev -p 5001:5000 flask-ci-app:dev
-                '''
-            }
-        }
-
-       stage('Promote to Staging') {
-    steps {
-        script {
-            input message: '🚀 Promote to staging?', ok: 'Promote'
-        }
-        sh '''
-            docker tag flask-ci-app:dev flask-ci-app:staging
-            docker stop flask-staging || true && docker rm flask-staging || true
-            docker run -d --name flask-staging -p 5002:5000 flask-ci-app:staging
-        '''
-    }
-}
-
     }
 
     post {
-        always {
-            echo '🚦 Pipeline finished.'
-        }
         success {
-            echo '✅ All stages passed!'
+            echo "✅ Image pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         failure {
-            echo '❌ Pipeline failed.'
+            echo "❌ Failed to push image"
         }
     }
 }
