@@ -58,5 +58,3 @@ pipeline {
         }
     }
 }
-// token: REDACTED
-// docker login -u monnomestjoy
