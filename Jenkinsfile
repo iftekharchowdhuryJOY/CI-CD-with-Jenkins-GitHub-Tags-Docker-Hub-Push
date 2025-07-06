@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'iftekharchowdhury/flask-ci-app'
+        IMAGE_NAME = 'monnomestjoy/flask-ci-app'
     }
 
     stages {
@@ -58,3 +58,5 @@ pipeline {
         }
     }
 }
+// token: REDACTED
+// docker login -u monnomestjoy
