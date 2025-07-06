@@ -6,12 +6,12 @@ pipeline {
     }
 
     stages {
-        stage('Clone') {
+       stage('Clone') {
     steps {
         script {
             sh '''
-                rm -rf CI-CD-Project-Using-JENKINS || true
-                https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
+                rm -rf CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push || true
+                git clone https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
                 cd CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push
                 git fetch --tags
                 LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
@@ -22,6 +22,7 @@ pipeline {
         }
     }
 }
+
 
         
 // https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
