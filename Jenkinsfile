@@ -6,31 +6,26 @@ pipeline {
     }
 
     stages {
-       stage('Clone') {
-    steps {
-        script {
-            sh '''
-                rm -rf CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push || true
-                git clone https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
-                cd CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push
-                git fetch --tags
-                LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-                git checkout $LATEST_TAG
-                cp -r * ../
-                cd ..
-            '''
-        }
-    }
-}
-
-
-        
-// https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
-        stage('Get Git Tag') {
+        stage('Clone') {
             steps {
                 script {
-                    TAG = sh(script: "git describe --tags", returnStdout: true).trim()
-                    env.IMAGE_TAG = "${TAG}"
+                    sh '''
+                        rm -rf CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push || true
+                        git clone https://github.com/iftekharchowdhuryJOY/CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push.git
+                    '''
+                }
+
+                script {
+                    // Enter repo folder and find latest tag using Groovy
+                    dir('CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push') {
+                        env.IMAGE_TAG = sh(script: "git fetch --tags && git describe --tags `git rev-list --tags --max-count=1`", returnStdout: true).trim()
+                        sh "git checkout ${env.IMAGE_TAG}"
+                    }
+
+                    // Copy the tagged contents back to Jenkins workspace
+                    sh '''
+                        cp -r CI-CD-with-Jenkins-GitHub-Tags-Docker-Hub-Push/* .
+                    '''
                 }
             }
         }
