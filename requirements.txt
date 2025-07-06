@@ -1,0 +1,3 @@
+Flask==2.2.5
+pytest
+Werkzeug<3.0
